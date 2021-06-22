@@ -220,14 +220,16 @@ class ATSChannelController(AcquisitionController):
         # We currently enforce the shape to be identical for all channels
         # so it's safe to take the first
         if self.shape_info['average_buffers']:
-            self.buffer = np.zeros(samples_per_record *
-                                   records_per_buffer *
-                                   self.number_of_channels)
-        else:
-            self.buffer = np.zeros((buffers_per_acquisition,
+            self.buffer = np.zeros(self.number_of_channels*
                                    samples_per_record *
-                                   records_per_buffer *
-                                   self.number_of_channels))
+                                   records_per_buffer
+                                   )
+        else:
+            self.buffer = np.zeros((self.number_of_channels, 
+                                    buffers_per_acquisition,
+                                    samples_per_record *
+                                    records_per_buffer
+                                   ))
         self.demodulators = []
 
         for channel in self.active_channels_nested:
@@ -246,6 +248,7 @@ class ATSChannelController(AcquisitionController):
                 self.demodulators.append(None)
 
     def pre_acquire(self):
+        
         pass
 
     def handle_buffer(self, data: np.ndarray, buffernum: int=0):
@@ -282,12 +285,17 @@ class ATSChannelController(AcquisitionController):
             number_of_buffers = 1
         else:
             number_of_buffers = buffers_per_acquisition
-        reshaped_buf = self.buffer.reshape(number_of_buffers,
+        reshaped_buf = self.buffer.reshape(self.number_of_channels, 
+                                           number_of_buffers,
                                            records_per_buffer,
                                            samples_per_record,
-                                           self.number_of_channels)
-        channelAData = reshaped_buf[..., 0]
-        channelBData = reshaped_buf[..., 1]
+                                           )
+        # reshaped_buf = self.buffer.reshape(number_of_buffers,
+        #                                    records_per_buffer,
+        #                                    samples_per_record,
+        #                                    self.number_of_channels)
+        channelAData = reshaped_buf[0, ...]
+        channelBData = reshaped_buf[1, ...]
 
         def handle_alazar_channel(channelData,
                                   channel_number: int,
@@ -354,6 +362,7 @@ class ATSChannelController(AcquisitionController):
             outputdataB = []
         # ensure that data gets back in the same order
         outputdata = outputdataA + outputdataB
+        print("OUTPUT DATA SHAPE:", np.shape(outputdata))
         outputdata = [outputdata[i] for i in self.shape_info['output_order']]
         if len(outputdata) == 1:
             return outputdata[0]
@@ -365,8 +374,10 @@ class ATSChannelController(AcquisitionController):
         bps = self.board_info['bits_per_sample']
         if bps == 12:
             volt_rec = helpers.sample_to_volt_u12(record, bps, input_range_volts=0.4)
+        elif bps == 8: 
+            volt_rec = helpers.sample_to_volt_u8(record, bps, input_range_volts = 0.4)
         else:
             logger.warning('sample to volt conversion does not exist for'
-                            ' bps != 12, centered raw samples returned')
+                            ' bps != 12 or 8, centered raw samples returned')
             volt_rec = record - np.mean(record)
         return volt_rec

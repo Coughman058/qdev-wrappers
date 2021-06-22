@@ -24,6 +24,24 @@ def sample_to_volt_u12(raw_samples, bps, input_range_volts):
 
     return volt_samples
 
+def sample_to_volt_u8(raw_samples, bps, input_range_volts): 
+    """
+    Applies volts conversion for 8 bit sample data stored
+    in 1 byte
+
+    return:
+        samples_magnitude_array
+        samples_phase_array
+    """
+
+    code_zero = (1 << (bps - 1)) - 0.5
+    code_range = (1 << (bps - 1)) - 0.5
+
+    # Convert to volts
+    volt_samples = np.float64(input_range_volts *
+                              (raw_samples - code_zero) / code_range)
+
+    return volt_samples
 
 def roundup(num, to_nearest):
     """
